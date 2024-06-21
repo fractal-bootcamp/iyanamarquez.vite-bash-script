@@ -10,29 +10,6 @@ code .
 npm i
 npm install express cors body-parser dotenv typescript @types/express @types/node ts-node --save-dev 
 
-npm install -D tailwindcss postcss autoprefixer
-npx tailwindcss init -p
-cat << 'EOF' > tailwind.config.js
-/** @type {import('tailwindcss').Config} */
-const withMT = require("@material-tailwind/react/utils/withMT");
-
-module.exports = withMT({
-  content: [
-    "./index.html",
-    "./src/**/*.{js,ts,jsx,tsx}",
-  ],
-  theme: {
-    extend: {},
-  },
-  plugins: [],
-});
-EOF
-
-# Step 4: Add Tailwind CSS directives to index.css
-cat << 'EOF' | tee -a src/index.css > /dev/null
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
 EOF
 
 # SETUP EXPRESS SERVER
@@ -52,11 +29,24 @@ app.get("/", (req, res) => {
   res.send("Hello World from Express server!");
 });
 
-const port = process.env.PORT || 3000;
+export default app;
+
+EOF
+
+# start server file
+cat <<EOF > start.js
+import app from "./server";
+
+const port = process.env.PORT || 4001;
+
 app.listen(port, () => {
-  console.log(\`Server is running on http://localhost:\${port}\`);
+  console.log(\`Example app listening on port \${port}\`);
 });
 EOF
+
+# Output success message
+echo "Generated server.js file:"
+cat server.js
 
 # node server.js & 
 
@@ -64,34 +54,15 @@ EOF
 cat << EOF > docker-compose.yml
 version: "3.9"
 services:
-  db_name:
+  testfunkydb:
     image: postgres:13
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: postgres
-    command: >
-      -c fsync=off 
-      -c full_page_writes=off 
-      -c synchronous_commit=off 
-      -c max_connections=500
+      DB_NAME: postgres
+    command: -c fsync=off -c full_page_writes=off -c synchronous_commit=off -c max_connections=500
     ports:
-      - "10004:5432"
-
-  my-vite-app:
-    build: .
-    ports:
-      - "3000:3000"
-    depends_on:
-      - db_name
-
-  express-server:
-    build: .
-    command: node server.js
-    ports:
-      - "3001:3001"
-    depends_on:
-      - db_name
+      - 10004:5432
 EOF
 
 docker-compose up -d
@@ -141,11 +112,11 @@ async function main() {
 
 main()
   .then(async () => {
-    await prisma.$disconnect()
+    await prisma.\$disconnect();
   })
   .catch(async (e) => {
     console.error(e)
-    await prisma.$disconnect()
+    await prisma.\$disconnect();
     process.exit(1)
   })
 EOF
@@ -157,6 +128,28 @@ cat << EOF > .env.local
 DATABASE_URL=${DATABASE_URL:-$DEFAULT_DATABASE_URL}
 # Add other environment variables here if needed
 EOF
+
+# Define the updated scripts object as a variable
+UPDATED_SCRIPTS='
+{
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "preview": "vite preview",
+    "test:run": "npx vitest run",
+    "test:db:up": "docker compose -f docker-compose-test.yml up -d",
+    "test:db:down": "docker compose -f docker-compose-test.yml down",
+    "db:migrate": "npx prisma migrate dev",
+    "test": "npm run test:db:up && npx dotenv-cli -e .env.test -- npm run db:migrate && npx dotenv-cli -e .env.test -- npm run test:run && npm run test:db:down"
+}
+'
+
+# Use jq to update only the scripts section in package.json
+jq '.scripts |= '"$UPDATED_SCRIPTS"'' package.json > temp.json && mv temp.json package.json
+
+# Verify the update
+echo "Updated package.json with new scripts:"
+cat package.json
 
 
 
