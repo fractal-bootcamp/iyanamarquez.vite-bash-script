@@ -150,6 +150,14 @@ main()
   })
 EOF
 
+DEFAULT_DATABASE_URL="postgresql://username:password@localhost:5432/mydatabase"
+
+# Create or overwrite .env.local file
+cat << EOF > .env.local
+DATABASE_URL=${DATABASE_URL:-$DEFAULT_DATABASE_URL}
+# Add other environment variables here if needed
+EOF
+
 
 
 # echo "✨ Successfully set up your app with Vite!"
